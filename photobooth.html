@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Photobooth — Manythings Printing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Nunito', 'sans-serif'], heading: ['Fredoka One', 'cursive'] },
+                colors: {
+                    'mp-pink': '#FF7EB6', 'mp-pink-light': '#FFE4F0',
+                    'mp-blue': '#2563EB', 'mp-blue-light': '#E0E7FF',
+                    'mp-bg-dot': '#E8EDF5', 'mp-dark': '#1F2937', 'mp-yellow': '#FFD166'
+                },
+                boxShadow: {
+                    'brutal': '4px 4px 0px 0px rgba(0,0,0,1)',
+                    'brutal-sm': '2px 2px 0px 0px rgba(0,0,0,1)',
+                    'brutal-lg': '8px 8px 0px 0px rgba(31,41,55,1)'
+                }
+            }
+        }
+    }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+    body {
+        background-color: #ffffff;
+        background-image: radial-gradient(#E8EDF5 2px, transparent 2px);
+        background-size: 20px 20px;
+        overflow-x: hidden;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+    .font-heading { font-family: 'Fredoka One', cursive; }
+    .brutal-border { border: 3px solid #1F2937; }
+    /* Springy squish-and-release: press flattens instantly (feels responsive),
+       release eases back out with a little overshoot (feels alive) instead of
+       snapping back the instant you lift your finger. */
+    .btn-press { transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease; }
+    .btn-press:active { transform: translateY(2px) translateX(2px) scale(.97) !important; box-shadow: none !important; transition: transform .05s ease, box-shadow .05s ease !important; }
+    input:focus, textarea:focus, button:focus-visible { outline: 3px solid #2563EB; outline-offset: 2px; }
+
+    @keyframes pop-in { 0% { opacity:0; transform:scale(.9); } 100% { opacity:1; transform:scale(1); } }
+    .pop-in { animation: pop-in .3s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* Whole-screen entrance, fired by showScreen() on every navigation —
+       this is the "page change" animation: a soft rise + fade + settle
+       instead of the previous instant hard-cut between screens. Kept to
+       opacity/transform only (no layout properties) so it's cheap and
+       can't cause a reflow jank on slower phones. */
+    @keyframes screen-pop-in {
+        0%   { opacity: 0; transform: translateY(16px) scale(.98); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .screen-pop { animation: screen-pop-in .4s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* Quick confirm bounce for choice buttons (mode/photo-count) — fires
+       the instant you tap, so there's an immediate "got it!" reaction even
+       during the beat before the next screen's pop-in arrives (the count
+       buttons in particular await an API call first). */
+    @keyframes tap-bounce {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(.92); }
+        70%  { transform: scale(1.04); }
+        100% { transform: scale(1); }
+    }
+    .tap-bounce { animation: tap-bounce .35s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* Tiny pop for icon toggles (mic/flip) so flipping a state feels like
+       it registered, without being as showy as the choice-button bounce. */
+    @keyframes toggle-pop { 0%{transform:scale(1)} 50%{transform:scale(1.22)} 100%{transform:scale(1)} }
+    .toggle-pop { animation: toggle-pop .3s ease both; }
+
+    @keyframes fade-in { from{opacity:0} to{opacity:1} }
+    .fade-in { animation: fade-in .35s ease both; }
+    @keyframes slide-up { from{opacity:0; transform:translateY(16px)} to{opacity:1; transform:translateY(0)} }
+    .slide-up { animation: slide-up .35s ease both; }
+    @keyframes flash-white { 0%{opacity:0} 15%{opacity:1} 100%{opacity:0} }
+    .flash-white { animation: flash-white .45s ease; }
+    @keyframes flash-count { 0%{transform:scale(.6);opacity:0} 30%{transform:scale(1.15);opacity:1} 70%{transform:scale(1);opacity:1} 100%{transform:scale(.9);opacity:0} }
+    .flash-count { animation: flash-count .9s ease both; }
+    @keyframes float-y { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    .float-y { animation: float-y 3s ease-in-out infinite; }
+
+    .screen { display: none; scroll-margin-top: 76px; }
+    .screen.active { display: block; }
+
+    .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+
+    .cam-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 12px 30px -10px rgba(31,41,55,.35);
+    }
+    /* Whoever is viewing the screen always sees themself on the left and
+       their partner on the right. Default DOM order is host-left/partner-
+       right (for when the local viewer is the host); when the local viewer
+       is the partner, #cam-pair gets .self-partner and these swap the grid
+       order so the partner's own tile moves to the left instead. */
+    .cam-pair .cam-tile-host { order: 1; }
+    .cam-pair .cam-tile-partner { order: 2; }
+    .cam-pair.self-partner .cam-tile-host { order: 2; }
+    .cam-pair.self-partner .cam-tile-partner { order: 1; }
+    .cam-tile { position: relative; aspect-ratio: 3/4; background: #111827; overflow: hidden; }
+    .cam-tile video { width: 100%; height: 100%; object-fit: cover; display:block; }
+    .cam-label {
+        position: absolute; top: 9px; left: 9px;
+        background: rgba(17,24,39,.55); backdrop-filter: blur(4px); color: #fff; font-weight: 800; font-size: 10px;
+        padding: 4px 10px; border-radius: 999px; letter-spacing: .06em;
+    }
+
+    dialog#chat-sheet { border:none; padding:0; background:transparent; margin:0; width:100%; max-width:100%; position:fixed; bottom:0; left:0; right:0; top:auto; }
+    dialog#chat-sheet::backdrop { background: rgba(31,41,55,.35); }
+
+    .tpl-swatch { aspect-ratio: 1/1.4; border-radius: 10px; overflow:hidden; position:relative; }
+    .tpl-swatch.selected { outline: 3px solid #FF7EB6; outline-offset: 2px; }
+
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+
+    .icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -0.15em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; }
+    .cam-tile .cam-dot { position:absolute; top:9px; right:9px; width:9px; height:9px; border-radius:999px; background:#9CA3AF; box-shadow:0 0 0 2px rgba(17,24,39,.55); }
+    .cam-tile .cam-dot.live { background:#22C55E; }
+    .cam-tile .cam-dot.pulse { animation: dot-pulse 1.4s ease-in-out infinite; }
+    @keyframes dot-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .progress-dots { display:flex; gap:6px; align-items:center; }
+    .progress-dots .pd { width:7px; height:7px; border-radius:999px; background:#D1D5DB; transition:background .2s, transform .2s; }
+    .progress-dots .pd.done { background:#FF7EB6; }
+    .progress-dots .pd.current { background:#2563EB; transform:scale(1.3); }
+    [data-tooltip] { position: relative; }
+
+    .strip-slot {
+        flex: 0 0 auto; width: 54px; aspect-ratio: 3/4; border-radius: 10px;
+        background: #F3F4F6; border: 2px solid #1F2937; overflow: hidden;
+        position: relative; display:flex; align-items:center; justify-content:center;
+    }
+    .strip-slot img { width:100%; height:100%; object-fit:cover; display:block; }
+    .strip-slot.empty { border-style: dashed; border-color:#D1D5DB; background:#FAFAFB; }
+    .strip-slot.current { border-color:#2563EB; box-shadow:0 0 0 2px rgba(37,99,235,.25); }
+    .strip-slot .strip-num { position:absolute; bottom:2px; right:3px; font-size:9px; font-weight:800; color:#9CA3AF; }
+    .strip-slot.done .strip-num { color:rgba(255,255,255,.85); text-shadow:0 1px 2px rgba(0,0,0,.5); }
+    @keyframes strip-pop { 0%{transform:scale(.7);opacity:0} 100%{transform:scale(1);opacity:1} }
+    .strip-slot.pop { animation: strip-pop .35s cubic-bezier(.34,1.56,.64,1) both; }
+
+    .reaction-btn {
+        font-size: 22px; line-height: 1; width: 46px; height: 46px; border-radius: 999px;
+        background: #fff; border: 2px solid #1F2937; box-shadow: 0 3px 0 #1F2937;
+        display:flex; align-items:center; justify-content:center; cursor:pointer;
+        transition: transform .1s ease;
+    }
+    .reaction-btn img { width: 26px; height: 26px; pointer-events: none; }
+    .reaction-btn:active { transform: translateY(2px) scale(.94); box-shadow: 0 1px 0 #1F2937; }
+
+    .cam-pair { position: relative; } /* anchor for floating reactions, layered above both tiles */
+    .floating-reaction {
+        position: absolute; bottom: 8px; font-size: 30px; z-index: 40;
+        pointer-events: none; animation: float-up 2.2s ease-out forwards;
+    }
+    .floating-reaction img { width: 34px; height: 34px; display: block; }
+    @keyframes float-up {
+        0%   { transform: translateY(0) scale(.6) rotate(0deg); opacity: 0; }
+        15%  { opacity: 1; transform: translateY(-10px) scale(1.15) rotate(-6deg); }
+        100% { transform: translateY(-160px) scale(1) rotate(8deg); opacity: 0; }
+    }
+</style>
+</head>
+<body class="font-sans text-mp-dark min-h-screen">
+
+<div class="fixed top-0 left-0 right-0 z-[70] flex flex-col items-center gap-2 pt-3 px-3" id="toast-container"></div>
+
+<!-- Minimal top bar -->
+<header class="sticky top-0 z-[60] bg-white/90 backdrop-blur max-w-3xl mx-auto flex items-center justify-between gap-2 px-4 pt-4 pb-2">
+    <a href="/" class="flex items-center gap-1 font-heading text-lg min-w-0 shrink">
+        <span class="text-mp-pink truncate">Manythings</span><span class="text-mp-blue truncate">Printing</span>
+    </a>
+    <div id="user-chip" class="hidden items-center gap-2 bg-white brutal-border rounded-full pl-1 pr-3 py-1 shadow-brutal-sm text-sm font-bold shrink-0 min-w-0 max-w-[9rem]">
+        <img id="user-avatar" class="w-6 h-6 rounded-full shrink-0" src="" alt=""/>
+        <span id="user-name" class="truncate"></span>
+    </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 pb-10">
+
+    <!-- ============ SCREEN: ENTRY ============ -->
+    <section id="screen-entry" class="screen active">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-6 sm:p-10 text-center mt-6 pop-in">
+            <h1 class="font-heading text-3xl sm:text-4xl mb-2">Photobooth</h1>
+            <p class="text-gray-500 mb-8">Create memories together</p>
+            <div class="flex flex-col gap-4 max-w-xs mx-auto">
+                <button id="btn-create-room" class="btn-press bg-mp-pink text-white font-bold py-4 rounded-full brutal-border shadow-brutal hover:-translate-y-1 transition-transform">Create Room</button>
+                <button id="btn-join-room" class="btn-press bg-white text-mp-dark font-bold py-4 rounded-full brutal-border shadow-brutal hover:-translate-y-1 transition-transform">Join Room</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: LOGIN ============ -->
+    <section id="screen-login" class="screen">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-6 sm:p-10 text-center mt-6 pop-in max-w-sm mx-auto">
+            <h2 class="font-heading text-2xl mb-2">Sign in to continue</h2>
+            <p class="text-gray-500 mb-6 text-sm">You'll need a Google account to create or join a room.</p>
+            <div id="google-btn-container" class="flex justify-center"></div>
+            <p id="google-config-warning" class="hidden text-xs text-red-600 mt-4 bg-red-50 rounded-xl p-3 brutal-border border-red-200"></p>
+            <button id="login-back" class="mt-6 text-sm text-gray-400 font-bold">← Back</button>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: CREATE - CHOOSE MODE ============ -->
+    <section id="screen-mode" class="screen">
+        <div class="mt-6">
+            <h2 class="font-heading text-2xl sm:text-3xl text-center mb-6">How do you want to take photos?</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button data-mode="together" class="mode-card btn-press brutal-border bg-white rounded-3xl shadow-brutal p-6 text-left hover:-translate-y-1 transition-transform">
+                    <div class="w-12 h-12 rounded-2xl bg-mp-pink-light flex items-center justify-center mb-3 text-mp-pink">
+                        <svg class="icon" style="width:24px;height:24px" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                    </div>
+                    <h3 class="font-heading text-xl mb-1">Together</h3>
+                    <p class="text-gray-500 text-sm">You're in the same place</p>
+                </button>
+                <button data-mode="long_distance" class="mode-card btn-press brutal-border bg-white rounded-3xl shadow-brutal p-6 text-left hover:-translate-y-1 transition-transform">
+                    <div class="w-12 h-12 rounded-2xl bg-mp-blue-light flex items-center justify-center mb-3 text-mp-blue">
+                        <svg class="icon" style="width:24px;height:24px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9s1.3-6.4 3.8-9Z"/></svg>
+                    </div>
+                    <h3 class="font-heading text-xl mb-1">Long Distance</h3>
+                    <p class="text-gray-500 text-sm">Take photos together from anywhere</p>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: PHOTO COUNT ============ -->
+    <section id="screen-count" class="screen">
+        <div class="mt-6 text-center">
+            <h2 class="font-heading text-2xl sm:text-3xl mb-6">How many photos?</h2>
+            <div class="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                <button data-count="1" class="count-btn btn-press aspect-square w-full rounded-3xl brutal-border bg-white font-heading shadow-brutal hover:-translate-y-1 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span class="text-5xl sm:text-6xl">1</span>
+                    <span class="text-xs sm:text-sm font-sans font-bold text-gray-500">photo</span>
+                </button>
+                <button data-count="2" class="count-btn btn-press aspect-square w-full rounded-3xl brutal-border bg-white font-heading shadow-brutal hover:-translate-y-1 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span class="text-5xl sm:text-6xl">2</span>
+                    <span class="text-xs sm:text-sm font-sans font-bold text-gray-500">photos</span>
+                </button>
+                <button data-count="3" class="count-btn btn-press aspect-square w-full rounded-3xl brutal-border bg-white font-heading shadow-brutal hover:-translate-y-1 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span class="text-5xl sm:text-6xl">3</span>
+                    <span class="text-xs sm:text-sm font-sans font-bold text-gray-500">photos</span>
+                </button>
+                <button data-count="4" class="count-btn btn-press aspect-square w-full rounded-3xl brutal-border bg-white font-heading shadow-brutal hover:-translate-y-1 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span class="text-5xl sm:text-6xl">4</span>
+                    <span class="text-xs sm:text-sm font-sans font-bold text-gray-500">photos</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: JOIN ============ -->
+    <section id="screen-join" class="screen">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-6 sm:p-10 mt-6 max-w-sm mx-auto pop-in">
+            <h2 class="font-heading text-2xl mb-4 text-center">Join a Room</h2>
+            <input id="join-code-input" maxlength="8" placeholder="ENTER ROOM CODE" class="w-full text-center tracking-widest font-heading text-xl uppercase rounded-xl px-4 py-3 brutal-border mb-4"/>
+            <button id="join-code-submit" class="btn-press w-full bg-mp-blue text-white font-bold py-3 rounded-full brutal-border shadow-brutal-sm">Join Room</button>
+            <p id="join-error" class="hidden text-red-600 text-sm text-center mt-3 font-bold"></p>
+            <button id="join-back" class="mt-4 text-sm text-gray-400 font-bold w-full text-center">← Back</button>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: WAITING (host, long distance) ============ -->
+    <section id="screen-waiting" class="screen">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-6 sm:p-10 mt-6 max-w-sm mx-auto text-center pop-in">
+            <p class="text-gray-500 font-bold text-sm mb-1">YOUR ROOM CODE</p>
+            <div id="waiting-code" class="font-heading text-4xl text-mp-pink mb-4 tracking-widest"></div>
+            <div class="flex gap-3 justify-center mb-6">
+                <button id="copy-code-btn" class="btn-press icon-btn gap-1.5 bg-white text-mp-dark font-bold py-2 px-4 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg> Copy
+                </button>
+                <button id="share-code-btn" class="btn-press icon-btn gap-1.5 bg-white text-mp-dark font-bold py-2 px-4 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg> Share
+                </button>
+            </div>
+            <div class="flex items-center justify-center gap-2 text-gray-500">
+                <span class="w-2 h-2 bg-mp-blue rounded-full float-y"></span>
+                <span class="font-bold text-sm">Waiting for partner…</span>
+            </div>
+            <button id="waiting-exit-btn" class="btn-press mt-6 text-sm font-bold text-gray-400 underline">Exit Room</button>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: TOGETHER CAMERA ============ -->
+    <section id="screen-together" class="screen">
+        <div class="mt-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <span id="together-progress" class="font-heading text-mp-blue text-sm">PHOTO 1 / 3</span>
+                    <div id="together-progress-dots" class="progress-dots"></div>
+                </div>
+                <button id="together-flip" aria-label="Switch camera" title="Switch camera" class="btn-press icon-btn bg-white brutal-border rounded-full w-9 h-9 shadow-brutal-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 14-4.9M20 15a8 8 0 0 1-14 4.9"/><path d="M18 4v4h-4M6 20v-4h4"/></svg>
+                </button>
+            </div>
+            <div class="relative brutal-border rounded-2xl overflow-hidden bg-black" style="aspect-ratio:3/4;">
+                <video id="together-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas id="together-canvas" class="hidden"></canvas>
+                <div id="together-flash" class="absolute inset-0 bg-white opacity-0 pointer-events-none"></div>
+                <div id="together-count" class="absolute inset-0 flex items-center justify-center font-heading text-white text-8xl hidden" style="text-shadow:0 4px 12px rgba(0,0,0,.4)"></div>
+                <img id="together-preview-img" class="hidden absolute inset-0 w-full h-full object-cover"/>
+            </div>
+            <div id="together-controls" class="mt-4 flex justify-center">
+                <button id="together-shutter" class="btn-press bg-mp-pink text-white font-bold py-4 px-10 rounded-full brutal-border shadow-brutal">SHUTTER</button>
+            </div>
+            <div id="together-review" class="hidden mt-4 flex gap-3 justify-center">
+                <button id="together-retake" class="btn-press bg-white text-mp-dark font-bold py-3 px-6 rounded-full brutal-border shadow-brutal-sm">Retake</button>
+                <button id="together-next" class="btn-press bg-mp-blue text-white font-bold py-3 px-6 rounded-full brutal-border shadow-brutal-sm">Next</button>
+            </div>
+            <p id="together-camera-error" class="hidden text-red-600 text-sm text-center mt-3 font-bold"></p>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: LONG DISTANCE CAMERA (HOST | PARTNER) ============ -->
+    <section id="screen-ld" class="screen">
+        <div class="mt-4">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-y-2">
+                <div class="flex items-center gap-3">
+                    <span id="ld-progress" class="font-heading text-mp-blue text-sm sm:text-base">PHOTO 1 / 3</span>
+                    <div id="ld-progress-dots" class="progress-dots"></div>
+                </div>
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <span id="ld-connection-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
+                    <span id="ld-debug-peers" class="hidden sm:inline text-[10px] text-gray-400 font-bold"></span>
+                    <button id="ld-mic-btn" aria-label="Toggle microphone" title="Toggle microphone" class="btn-press icon-btn bg-white brutal-border rounded-full w-8 h-8 sm:w-9 sm:h-9 shadow-brutal-sm"></button>
+                    <button id="ld-flip-btn" aria-label="Switch camera" title="Switch camera" class="btn-press icon-btn bg-white brutal-border rounded-full w-8 h-8 sm:w-9 sm:h-9 shadow-brutal-sm">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 14-4.9M20 15a8 8 0 0 1-14 4.9"/><path d="M18 4v4h-4M6 20v-4h4"/></svg>
+                    </button>
+                    <button id="ld-chat-btn" aria-label="Open chat" title="Chat" class="btn-press icon-btn bg-white brutal-border rounded-full w-8 h-8 sm:w-9 sm:h-9 shadow-brutal-sm relative">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5Z"/></svg>
+                        <span id="ld-chat-badge" class="hidden absolute -top-1 -right-1 bg-mp-pink text-white text-[10px] w-4 h-4 rounded-full items-center justify-center">•</span>
+                    </button>
+                    <button id="ld-exit-btn" aria-label="Exit room" title="Exit room" class="btn-press icon-btn bg-white brutal-border rounded-full w-8 h-8 sm:w-9 sm:h-9 shadow-brutal-sm text-red-500">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="cam-pair" class="cam-pair">
+                <div class="cam-tile cam-tile-host">
+                    <video id="ld-video-host" autoplay playsinline></video>
+                    <img id="ld-frozen-host" class="hidden absolute inset-0 w-full h-full object-cover"/>
+                    <span class="cam-label">HOST</span>
+                    <span id="ld-dot-host" class="cam-dot"></span>
+                </div>
+                <div class="cam-tile cam-tile-partner">
+                    <video id="ld-video-partner" autoplay playsinline></video>
+                    <img id="ld-frozen-partner" class="hidden absolute inset-0 w-full h-full object-cover"/>
+                    <span class="cam-label">PARTNER</span>
+                    <span id="ld-dot-partner" class="cam-dot"></span>
+                    <div id="ld-partner-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-xs font-bold text-center px-3">Connecting…</div>
+                </div>
+            </div>
+
+            <div id="ld-flash" class="fixed inset-0 bg-white opacity-0 pointer-events-none z-[65]"></div>
+            <div id="ld-count" class="fixed inset-0 flex items-center justify-center font-heading text-white text-8xl hidden z-[65]" style="text-shadow:0 4px 12px rgba(0,0,0,.5)"></div>
+
+            <div id="ld-host-controls" class="mt-4 hidden flex-col items-center gap-3 safe-bottom">
+                <button id="ld-shutter" class="btn-press bg-mp-pink text-white font-bold py-4 px-10 rounded-full brutal-border shadow-brutal">SHUTTER</button>
+            </div>
+            <div id="ld-host-review" class="hidden mt-4 flex gap-3 justify-center safe-bottom">
+                <button id="ld-retake" class="btn-press bg-white text-mp-dark font-bold py-3 px-6 rounded-full brutal-border shadow-brutal-sm">Retake</button>
+                <button id="ld-next" class="btn-press bg-mp-blue text-white font-bold py-3 px-6 rounded-full brutal-border shadow-brutal-sm">Next</button>
+            </div>
+            <p id="ld-partner-wait-msg" class="hidden text-center text-gray-500 text-sm font-bold mt-4">Waiting for host to take the photo…</p>
+            <!-- WebRTC/ICE connection status (live video+audio call health) —
+                 kept in its own element, separate from ld-status-msg below
+                 (which reports photo-capture progress). These two things are
+                 largely independent: the live call can hiccup without the
+                 server-mediated photo capture/broadcast being affected at
+                 all, and vice versa. They used to share one element and
+                 whichever wrote to it last silently erased the other's
+                 message, so a transient "Connection unstable" blip could
+                 hide "waiting for partner's photo" (or the reverse), making
+                 it look like the capture flow itself was broken when it may
+                 have just been a stale message. -->
+            <p id="ld-rtc-status-msg" class="hidden text-center text-sm font-bold mt-3 bg-mp-yellow/40 brutal-border rounded-xl py-2 px-3"></p>
+            <p id="ld-status-msg" class="hidden text-center text-sm font-bold mt-3 bg-mp-yellow/40 brutal-border rounded-xl py-2 px-3"></p>
+            <!-- Manual escape hatch: shown a few seconds after a capture
+                 round trip stalls with neither the shutter nor Retake/Next
+                 on screen, previously that state had zero interactive
+                 elements and no way out short of leaving the room. Only
+                 meaningful for the host, since the partner has no controls
+                 on this screen at all (see setupLDControlsVisibility). -->
+            <button id="ld-stuck-retry" class="hidden mt-3 mx-auto block text-sm font-bold underline text-mp-dark/70">Stuck? Tap to retry this photo</button>
+
+            <!-- Live photo strip: fills the leftover space below the shutter
+                 with a running polaroid-style preview of the whole session,
+                 filled in shot-by-shot as each photo lands. Doubles as a
+                 progress readout (empty slots vs done) and a little "look
+                 what we've made so far" moment for a long-distance pair. -->
+            <div class="mt-6">
+                <p class="text-center text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Your strip so far</p>
+                <div id="ld-photo-strip" class="flex gap-3 overflow-x-auto pb-2 px-1 justify-center"></div>
+            </div>
+
+            <!-- Quick reactions: a tiny, low-effort way to say something
+                 across the distance while waiting on the other person —
+                 taps float an emoji up over the video pair on BOTH screens.
+                 Placed here specifically because it's the next thing in the
+                 empty space below the strip; doesn't touch the shutter/
+                 capture flow at all (see wsSend('reaction', ...) below). -->
+            <div class="mt-5">
+                <p class="text-center text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Send a reaction</p>
+                <div id="ld-reaction-bar" class="flex gap-2 justify-center flex-wrap">
+                    <button class="reaction-btn" data-emoji="❤️"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/2764-fe0f.png" alt="❤️" onerror="this.replaceWith(document.createTextNode('❤️'))"></button>
+                    <button class="reaction-btn" data-emoji="😂"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f602.png" alt="😂" onerror="this.replaceWith(document.createTextNode('😂'))"></button>
+                    <button class="reaction-btn" data-emoji="😍"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f60d.png" alt="😍" onerror="this.replaceWith(document.createTextNode('😍'))"></button>
+                    <button class="reaction-btn" data-emoji="🔥"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f525.png" alt="🔥" onerror="this.replaceWith(document.createTextNode('🔥'))"></button>
+                    <button class="reaction-btn" data-emoji="👏"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f44f.png" alt="👏" onerror="this.replaceWith(document.createTextNode('👏'))"></button>
+                    <button class="reaction-btn" data-emoji="😮"><img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f62e.png" alt="😮" onerror="this.replaceWith(document.createTextNode('😮'))"></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: PARTNER WAIT (after all photos) ============ -->
+    <section id="screen-partner-wait" class="screen">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-8 sm:p-10 mt-6 max-w-sm mx-auto text-center pop-in">
+            <div class="w-16 h-16 rounded-2xl bg-mp-pink-light flex items-center justify-center mb-4 mx-auto text-mp-pink">
+                <svg class="icon" style="width:30px;height:30px" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </div>
+            <h2 class="font-heading text-2xl mb-2">Thanks for using Photobooth!</h2>
+            <p class="text-gray-500">Your host is preparing your photos.</p>
+            <div id="partner-final-wrap" class="hidden mt-6">
+                <img id="partner-final-img" class="w-full rounded-xl brutal-border mb-4"/>
+                <button id="partner-download-btn" class="btn-press w-full bg-mp-blue text-white font-bold py-3 rounded-full brutal-border shadow-brutal-sm">Download Photo</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: CUSTOMIZE (host) ============ -->
+    <section id="screen-customize" class="screen">
+        <div class="mt-4">
+            <div class="flex items-center justify-center gap-2 mb-4 relative">
+                <h2 class="font-heading text-2xl text-center">Customize Your Photobooth</h2>
+                <button id="customize-exit-btn" aria-label="Exit room" title="Exit room" class="btn-press icon-btn bg-white brutal-border rounded-full w-8 h-8 shadow-brutal-sm text-red-500 absolute right-0">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                </button>
+            </div>
+
+            <div class="brutal-border bg-mp-dark rounded-2xl p-3 mb-4 flex items-center justify-center">
+                <canvas id="preview-canvas" class="max-w-full rounded-lg" style="max-height:60vh;"></canvas>
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-3" id="tabs-row">
+                <button data-tab="templates" class="cust-tab btn-press bg-mp-pink text-white font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">TEMPLATES</button>
+                <button data-tab="background" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">BACKGROUND</button>
+                <button data-tab="frame" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">FRAME</button>
+                <button data-tab="text" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">TEXT</button>
+                <button data-tab="layout" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">LAYOUT</button>
+                <button data-tab="stickers" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">STICKERS</button>
+                <button data-tab="filter" class="cust-tab btn-press bg-white text-mp-dark font-bold text-xs py-2 px-4 rounded-full brutal-border shrink-0">FILTER</button>
+            </div>
+
+            <div class="brutal-border bg-white rounded-2xl shadow-brutal p-4 mb-4" style="min-height:180px;">
+                <div id="tab-templates" class="cust-panel">
+                    <div id="template-categories"></div>
+                </div>
+                <div id="tab-background" class="cust-panel hidden">
+                    <label class="block text-xs font-bold mb-2 text-gray-500">BACKGROUND COLOR</label>
+                    <input type="color" id="bg-color-input" class="w-full h-10 rounded-lg brutal-border"/>
+                </div>
+                <div id="tab-frame" class="cust-panel hidden">
+                    <label class="block text-xs font-bold mb-2 text-gray-500">BORDER WIDTH</label>
+                    <input type="range" id="frame-width-input" min="0" max="40" value="14" class="w-full"/>
+                    <label class="block text-xs font-bold mb-2 mt-4 text-gray-500">BORDER COLOR</label>
+                    <input type="color" id="frame-color-input" class="w-full h-10 rounded-lg brutal-border"/>
+                </div>
+                <div id="tab-text" class="cust-panel hidden space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold mb-1 text-gray-500">TITLE</label>
+                        <input id="title-input" maxlength="30" placeholder="Our Photobooth" class="w-full rounded-lg px-3 py-2 brutal-border text-sm"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1 text-gray-500">SUBTITLE / DATE</label>
+                        <input id="subtitle-input" maxlength="30" placeholder="" class="w-full rounded-lg px-3 py-2 brutal-border text-sm"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1 text-gray-500">TEXT COLOR</label>
+                        <input type="color" id="text-color-input" class="w-full h-10 rounded-lg brutal-border"/>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" id="show-date-input" checked/> Show date</label>
+                </div>
+                <div id="tab-layout" class="cust-panel hidden">
+                    <label class="block text-xs font-bold mb-2 text-gray-500">LAYOUT</label>
+                    <div class="flex gap-2 mb-4">
+                        <button data-layout="strip" class="layout-btn btn-press flex-1 bg-mp-pink text-white font-bold text-sm py-2 rounded-lg brutal-border">Strip</button>
+                        <button data-layout="grid" class="layout-btn btn-press flex-1 bg-white text-mp-dark font-bold text-sm py-2 rounded-lg brutal-border">Grid</button>
+                    </div>
+                    <label class="block text-xs font-bold mb-2 text-gray-500">STRIP ORIENTATION</label>
+                    <div class="flex gap-2">
+                        <button data-orient="vertical" class="orient-btn btn-press flex-1 bg-mp-pink text-white font-bold text-sm py-2 rounded-lg brutal-border">Vertical</button>
+                        <button data-orient="horizontal" class="orient-btn btn-press flex-1 bg-white text-mp-dark font-bold text-sm py-2 rounded-lg brutal-border">Horizontal</button>
+                    </div>
+                    <label class="block text-xs font-bold mb-2 mt-4 text-gray-500">SPACING</label>
+                    <input type="range" id="spacing-input" min="0" max="30" value="10" class="w-full"/>
+                    <label class="block text-xs font-bold mb-2 mt-4 text-gray-500">PHOTO ORDER</label>
+                    <div id="order-list" class="space-y-2"></div>
+                </div>
+                <div id="tab-stickers" class="cust-panel hidden">
+                    <label class="block text-xs font-bold mb-2 text-gray-500">STICKERS</label>
+                    <div id="sticker-grid" class="grid grid-cols-6 gap-2"></div>
+                    <p class="text-[11px] text-gray-400 mt-3">Tap a sticker to add it to the corners of your strip. Tap again to remove.</p>
+                </div>
+                <div id="tab-filter" class="cust-panel hidden">
+                    <label class="block text-xs font-bold mb-2 text-gray-500">PHOTO FILTER</label>
+                    <div id="filter-grid" class="grid grid-cols-3 gap-2"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 safe-bottom">
+                <button id="reset-btn" aria-label="Reset customization" class="btn-press icon-btn gap-1.5 bg-white text-mp-dark font-bold py-3 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 14-4.9M20 15a8 8 0 0 1-14 4.9"/><path d="M18 4v4h-4M6 20v-4h4"/></svg> Reset
+                </button>
+                <button id="download-btn" class="btn-press icon-btn gap-1.5 bg-mp-blue text-white font-bold py-3 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg> Download
+                </button>
+                <button id="print-btn" class="btn-press icon-btn gap-1.5 bg-mp-dark text-white font-bold py-3 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2M6 14h12v7H6v-7Z"/></svg> Print
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 safe-bottom mt-3">
+                <button id="share-btn" class="btn-press icon-btn gap-1.5 bg-white text-mp-dark font-bold py-3 rounded-full brutal-border shadow-brutal-sm text-sm">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg> Share
+                </button>
+                <button id="finish-btn" class="btn-press bg-mp-pink text-white font-bold py-3 rounded-full brutal-border shadow-brutal">Finish & Share with Partner</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SCREEN: ERROR ============ -->
+    <section id="screen-error" class="screen">
+        <div class="brutal-border bg-white rounded-3xl shadow-brutal p-8 mt-6 max-w-sm mx-auto text-center pop-in">
+            <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-3 mx-auto text-red-500">
+                <svg class="icon" style="width:26px;height:26px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            </div>
+            <h2 class="font-heading text-xl mb-2">Something went wrong</h2>
+            <p id="error-message" class="text-gray-500 text-sm mb-6"></p>
+            <button id="error-home-btn" class="btn-press bg-mp-pink text-white font-bold py-3 px-6 rounded-full brutal-border shadow-brutal-sm">Back to Start</button>
+        </div>
+    </section>
+
+</main>
+
+<!-- Chat bottom sheet -->
+<dialog id="chat-sheet">
+    <div class="brutal-border border-b-0 rounded-t-3xl bg-white shadow-brutal-lg max-w-3xl mx-auto flex flex-col" style="height:60vh;">
+        <div class="flex items-center justify-between p-4 border-b-2 border-mp-dark">
+            <h3 class="font-heading text-lg">Chat</h3>
+            <button id="chat-close" aria-label="Close chat" title="Close" class="btn-press icon-btn w-8 h-8 rounded-full brutal-border">
+                <svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+        <form id="chat-form" class="p-3 border-t-2 border-mp-dark flex gap-2 safe-bottom">
+            <input id="chat-input" maxlength="200" placeholder="Type a message…" class="flex-1 rounded-full px-4 py-2 brutal-border text-sm"/>
+            <button type="submit" class="btn-press bg-mp-pink text-white font-bold px-4 rounded-full brutal-border shadow-brutal-sm">Send</button>
+        </form>
+    </div>
+</dialog>
+
+<script src="/static/templates.js?v=7"></script>
+<script src="/static/photobooth.js?v=7"></script>
+</body>
+</html>

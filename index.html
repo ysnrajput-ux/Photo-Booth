@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Manythings Printing - Print Your Cutest Moments</title>
+<meta name="description" content="Turn your favorite moments into adorable keepsakes. Snap photos in our online photobooth and print gorgeous strips, polaroids, stickers, and more — delivered right to your door."/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="Manythings Printing - Print Your Cutest Moments"/>
+<meta property="og:description" content="Turn your favorite moments into adorable keepsakes. Snap photos in our online photobooth and print gorgeous strips, polaroids, stickers, and more — delivered right to your door."/>
+<meta property="og:image" content="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRH6LwepA1IcLPg-a9gu31wzGTPj54-tgN-j9Uh-a0ZPw&s=10"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Manythings Printing - Print Your Cutest Moments"/>
+<meta name="twitter:description" content="Turn your favorite moments into adorable keepsakes. Snap photos in our online photobooth and print gorgeous strips, polaroids, stickers, and more — delivered right to your door."/>
+<meta name="twitter:image" content="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRH6LwepA1IcLPg-a9gu31wzGTPj54-tgN-j9Uh-a0ZPw&s=10"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Nunito', 'sans-serif'],
+                    heading: ['Fredoka One', 'cursive']
+                },
+                colors: {
+                    'mp-pink': '#FF7EB6',
+                    'mp-pink-light': '#FFE4F0',
+                    'mp-blue': '#2563EB',
+                    'mp-blue-light': '#E0E7FF',
+                    'mp-bg-dot': '#E8EDF5',
+                    'mp-dark': '#1F2937',
+                    'mp-yellow': '#FFD166'
+                },
+                boxShadow: {
+                    'brutal': '4px 4px 0px 0px rgba(0,0,0,1)',
+                    'brutal-sm': '2px 2px 0px 0px rgba(0,0,0,1)',
+                    'brutal-lg': '8px 8px 0px 0px rgba(31,41,55,1)'
+                }
+            }
+        }
+    }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="manifest" href="/static/manifest.json"/>
+<meta name="theme-color" content="#FF7EB6"/>
+<link rel="icon" href="/static/icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
+<style>
+    body {
+        background-color: #ffffff;
+        background-image: radial-gradient(#E8EDF5 2px, transparent 2px);
+        background-size: 20px 20px;
+        overflow-x: hidden;
+    }
+    .font-heading { font-family: 'Fredoka One', cursive; }
+    .brutal-border { border: 3px solid #1F2937; }
+
+    /* ---------- Reduced motion respect ---------- */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+
+    html { scroll-behavior: smooth; }
+
+    /* ---------- Scroll reveal ---------- */
+    .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.in-view {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .reveal-stagger.in-view > * { opacity: 1; transform: translateY(0); }
+    .reveal-stagger > * {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal-stagger.in-view > *:nth-child(1) { transition-delay: 0.05s; }
+    .reveal-stagger.in-view > *:nth-child(2) { transition-delay: 0.15s; }
+    .reveal-stagger.in-view > *:nth-child(3) { transition-delay: 0.25s; }
+    .reveal-stagger.in-view > *:nth-child(4) { transition-delay: 0.35s; }
+
+    /* ---------- Floating decorations ---------- */
+    @keyframes float-slow {
+        0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+        50% { transform: translateY(-10px) rotate(var(--rot, 0deg)); }
+    }
+    .float-anim { animation: float-slow 3.5s ease-in-out infinite; }
+
+    @keyframes wiggle {
+        0%, 100% { transform: rotate(-3deg); }
+        50% { transform: rotate(3deg); }
+    }
+    .wiggle-hover:hover { animation: wiggle 0.5s ease-in-out; }
+
+    @keyframes pop-in {
+        0% { opacity: 0; transform: scale(0.85); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+    .pop-in { animation: pop-in 0.35s cubic-bezier(.34,1.56,.64,1) both; }
+
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+    .spin-slow { animation: spin-slow 12s linear infinite; }
+
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    .marquee-track { animation: marquee 22s linear infinite; }
+
+    @keyframes flash-count {
+        0% { transform: scale(0.6); opacity: 0; }
+        30% { transform: scale(1.15); opacity: 1; }
+        70% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(0.9); opacity: 0; }
+    }
+    .flash-count { animation: flash-count 1s ease both; }
+
+    @keyframes flash-white {
+        0% { opacity: 0; }
+        15% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    .flash-white { animation: flash-white 0.5s ease; }
+
+    @keyframes cart-bump {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+    }
+    .cart-bump { animation: cart-bump 0.4s ease; }
+
+    @keyframes toast-in {
+        0% { opacity: 0; transform: translateY(16px) translateX(-50%); }
+        10% { opacity: 1; transform: translateY(0) translateX(-50%); }
+        90% { opacity: 1; transform: translateY(0) translateX(-50%); }
+        100% { opacity: 0; transform: translateY(16px) translateX(-50%); }
+    }
+    .toast-anim { animation: toast-in 2.6s ease forwards; }
+
+    .btn-press { transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease; }
+    .btn-press:active { transform: translateY(2px) translateX(2px) scale(.97) !important; box-shadow: none !important; transition: transform .05s ease, box-shadow .05s ease !important; }
+
+    /* Mobile menu */
+    #mobile-menu {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.35s ease;
+    }
+    #mobile-menu.open { max-height: 420px; }
+
+    .nav-underline {
+        position: relative;
+    }
+    .nav-underline::after {
+        content: '';
+        position: absolute;
+        left: 50%; bottom: -8px;
+        width: 0; height: 3px;
+        background: #1F2937;
+        border-radius: 999px;
+        transform: translateX(-50%);
+        transition: width 0.25s ease;
+    }
+    .nav-underline.active::after, .nav-underline:hover::after { width: 16px; }
+
+    /* Modal */
+    .modal-backdrop { backdrop-filter: blur(2px); }
+    dialog::backdrop { background: rgba(31,41,55,0.4); }
+    dialog { border: none; padding: 0; background: transparent; }
+
+    input:focus, textarea:focus, button:focus-visible, a:focus-visible {
+        outline: 3px solid #2563EB;
+        outline-offset: 2px;
+    }
+
+    .heart-burst {
+        position: fixed;
+        pointer-events: none;
+        font-size: 20px;
+        z-index: 60;
+        animation: heart-rise 1s ease-out forwards;
+    }
+    @keyframes heart-rise {
+        0% { opacity: 1; transform: translateY(0) scale(0.8); }
+        100% { opacity: 0; transform: translateY(-80px) scale(1.3); }
+    }
+</style>
+</head>
+<body class="font-sans text-mp-dark min-h-screen pt-4 px-4 md:px-8 lg:px-12">
+
+<!-- ================= TOAST CONTAINER ================= -->
+<div class="fixed bottom-6 left-1/2 z-[70] flex flex-col gap-2 items-center" id="toast-container" style="transform: translateX(-50%);"></div>
+
+<!-- ================= TOP NAVIGATION ================= -->
+<header class="max-w-6xl mx-auto brutal-border bg-white rounded-3xl sm:rounded-full py-2 px-3 sm:px-6 flex items-center justify-between gap-2 mb-4 shadow-brutal sticky top-4 z-50">
+    <a href="#home" class="flex items-center gap-1 font-heading text-base sm:text-xl min-w-0 shrink">
+        <span class="text-mp-pink truncate">Manythings</span>
+        <span class="text-mp-blue truncate">Printing</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-8 font-bold shrink-0">
+        <a class="nav-underline active text-mp-dark" href="#home" data-nav>Home</a>
+        <a class="nav-underline text-gray-600 hover:text-mp-dark flex items-center gap-2" href="/photobooth">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            Photobooth
+        </a>
+    </nav>
+
+    <div class="flex items-center gap-1.5 sm:gap-4 shrink-0 min-w-0">
+        <button id="cart-btn" aria-label="Open cart" class="btn-press shrink-0 bg-mp-pink brutal-border rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center relative shadow-brutal-sm hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all">
+            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            <span id="cart-count" class="absolute -top-1 -right-1 bg-white text-mp-dark text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center border border-mp-dark">0</span>
+        </button>
+        <button id="signin-btn" class="btn-press shrink-0 bg-mp-blue text-white font-bold py-2 px-6 rounded-full brutal-border shadow-brutal-sm hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all hidden sm:block">
+            Sign in
+        </button>
+        <button id="user-chip" class="hidden items-center gap-1.5 sm:gap-2 bg-white brutal-border rounded-full pl-1 pr-2 sm:pr-3 py-1 shadow-brutal-sm text-xs sm:text-sm font-bold btn-press min-w-0 max-w-[7.5rem] sm:max-w-[10rem]">
+            <img id="user-avatar" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0" src="" alt=""/>
+            <span id="user-name" class="truncate"></span>
+        </button>
+        <button id="menu-toggle" aria-label="Toggle menu" aria-expanded="false" class="btn-press shrink-0 md:hidden bg-white brutal-border rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shadow-brutal-sm">
+            <svg id="menu-icon-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            <svg id="menu-icon-close" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+        </button>
+    </div>
+</header>
+
+<!-- Mobile menu panel -->
+<div id="mobile-menu" class="max-w-6xl mx-auto md:hidden mb-6">
+    <div class="brutal-border bg-white rounded-2xl shadow-brutal p-4 flex flex-col gap-3 font-bold">
+        <a href="#home" data-nav class="py-2 px-3 rounded-xl hover:bg-mp-pink-light transition-colors">Home</a>
+        <a href="/photobooth" class="py-2 px-3 rounded-xl hover:bg-mp-pink-light transition-colors">Photobooth</a>
+        <button id="signin-btn-mobile" class="btn-press bg-mp-blue text-white font-bold py-2 px-6 rounded-full brutal-border shadow-brutal-sm mt-1">Sign in</button>
+        <button id="user-chip-mobile" class="hidden items-center gap-2 bg-white brutal-border rounded-full pl-1 pr-3 py-2 shadow-brutal-sm text-sm font-bold btn-press mt-1 justify-center">
+            <img id="user-avatar-mobile" class="w-7 h-7 rounded-full" src="" alt=""/>
+            <span id="user-name-mobile"></span>
+        </button>
+    </div>
+</div>
+
+<!-- ================= HERO ================= -->
+<main id="home" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center pb-16 sm:pb-20 scroll-mt-24">
+    <div class="space-y-6 sm:space-y-8 relative z-10 text-center lg:text-left reveal">
+        <div class="inline-flex items-center gap-2 bg-mp-pink-light text-mp-pink font-bold py-1 px-3 rounded-full text-sm">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"/></svg>
+            Turn Your Memories Into Keepsakes
+        </div>
+
+        <h1 class="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight">
+            Print Your <br class="hidden sm:block"/>
+            <span class="text-mp-pink">Cutest</span> <span class="text-mp-blue">Moments</span>
+        </h1>
+
+        <p class="text-gray-600 text-base sm:text-lg md:text-xl max-w-md mx-auto lg:mx-0">
+            Create premium photo strips, stickers, polaroids, and custom photo gifts — printed with vibrant colors and made to last.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 pt-2 justify-center lg:justify-start">
+            <a id="hero-photobooth-btn" href="/photobooth" class="btn-press bg-mp-pink text-white font-bold py-3 px-8 rounded-full brutal-border shadow-brutal flex items-center justify-center gap-2 hover:-translate-y-1 transition-transform">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                Try Photobooth
+            </a>
+            <button type="button" id="hero-explore-btn" class="btn-press bg-white text-mp-dark font-bold py-3 px-8 rounded-full brutal-border shadow-brutal hover:-translate-y-1 transition-transform inline-block">
+                Explore Products
+            </button>
+        </div>
+
+        <div class="flex items-center gap-8 pt-4 sm:pt-6 justify-center lg:justify-start">
+            <div>
+                <div class="font-bold text-2xl" id="prints-counter">0</div>
+                <div class="text-gray-500 text-sm">Prints Delivered</div>
+            </div>
+            <div class="w-px h-10 bg-gray-300"></div>
+            <div>
+                <div class="font-bold text-2xl flex items-center gap-1">
+                    4.9<svg class="w-5 h-5 text-mp-dark" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"/></svg>
+                </div>
+                <div class="text-gray-500 text-sm">Happy Customers</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Collage -->
+    <div id="product-collage" class="relative w-full max-w-sm sm:max-w-md mx-auto aspect-square flex justify-center items-center reveal">
+        <div class="relative w-full bg-white brutal-border rounded-2xl transform rotate-2 shadow-brutal-lg p-3 sm:p-4 hover:rotate-0 transition-transform duration-500">
+            <div class="grid grid-cols-2 grid-rows-2 gap-3 sm:gap-4 h-full bg-gray-50 rounded-xl overflow-hidden p-2 relative z-0">
+
+                <button data-add="Photo Strip" data-price="8" class="btn-press wiggle-hover bg-[#EAE4F5] rounded-lg overflow-hidden flex items-center justify-center p-2 relative text-left cursor-pointer" aria-label="Add photo strip to cart">
+                    <div class="bg-white p-2 rounded shadow-sm flex flex-col gap-1 w-16 sm:w-20 transform -rotate-2">
+                        <div class="aspect-square bg-pink-200 rounded-sm"></div>
+                        <div class="aspect-square bg-pink-300 rounded-sm"></div>
+                        <div class="aspect-square bg-pink-400 rounded-sm"></div>
+                    </div>
+                </button>
+
+                <button data-add="Keychain Set" data-price="12" class="btn-press wiggle-hover bg-[#FDF0E6] rounded-lg overflow-hidden flex items-center justify-center relative cursor-pointer" aria-label="Add keychains to cart">
+                    <div class="flex gap-2">
+                        <div class="w-10 h-14 sm:w-12 sm:h-16 bg-white border border-gray-200 rounded flex flex-col items-center p-1 shadow-sm transform rotate-3">
+                            <div class="w-4 h-4 rounded-full border border-gray-300 mb-1"></div>
+                            <div class="w-full flex-1 bg-gray-200 rounded-sm"></div>
+                        </div>
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm transform -rotate-6">
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gray-200 rounded-full"></div>
+                        </div>
+                    </div>
+                </button>
+
+                <button data-add="Polaroid Pack" data-price="10" class="btn-press wiggle-hover bg-[#FFE4E6] rounded-lg overflow-hidden flex items-center justify-center relative p-4 cursor-pointer" aria-label="Add polaroids to cart">
+                    <div class="bg-white p-2 pb-6 shadow-md transform -rotate-6 absolute left-2 top-2 border border-gray-100">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-200"></div>
+                    </div>
+                    <div class="bg-white p-2 pb-6 shadow-md transform rotate-3 absolute right-2 bottom-2 border border-gray-100">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 bg-orange-200"></div>
+                    </div>
+                </button>
+
+                <button data-add="Sticker Sheet" data-price="6" class="btn-press wiggle-hover bg-white rounded-lg overflow-hidden flex items-center justify-center relative p-2 cursor-pointer" aria-label="Add stickers to cart">
+                    <div class="flex flex-wrap gap-2 justify-center items-center">
+                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-purple-200"></div>
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 bg-yellow-200 rounded-md transform rotate-12"></div>
+                        <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-pink-200"></div>
+                        <div class="w-10 h-7 sm:w-12 sm:h-8 bg-green-200 rounded-full transform -rotate-12"></div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="absolute -top-4 -left-4 bg-white brutal-border p-2 rounded-lg transform -rotate-12 z-20 float-anim" style="--rot:-12deg;">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-mp-pink" fill="currentColor" viewBox="0 0 24 24"><path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"/></svg>
+            </div>
+            <div class="absolute -bottom-4 -right-4 bg-white brutal-border p-2 rounded-lg transform rotate-12 z-20 spin-slow">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-mp-blue" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"/></svg>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Marquee strip -->
+<div class="max-w-6xl mx-auto brutal-border bg-mp-dark rounded-full mb-16 sm:mb-20 py-3 overflow-hidden reveal">
+    <div class="flex whitespace-nowrap marquee-track w-max font-heading text-mp-yellow text-lg sm:text-xl">
+        <span class="mx-6">✦ Same-Week Printing</span><span class="mx-6">✦ Eco-Friendly Paper</span><span class="mx-6">✦ Free Shipping over $30</span><span class="mx-6">✦ Made With Love</span>
+        <span class="mx-6">✦ Same-Week Printing</span><span class="mx-6">✦ Eco-Friendly Paper</span><span class="mx-6">✦ Free Shipping over $30</span><span class="mx-6">✦ Made With Love</span>
+    </div>
+</div>
+
+<!-- ================= FOOTER ================= -->
+<footer class="max-w-6xl mx-auto pb-10 reveal">
+    <div class="brutal-border bg-mp-dark rounded-3xl shadow-brutal p-6 sm:p-10 text-white text-center">
+        <h3 class="font-heading text-2xl sm:text-3xl mb-2">Ready to print your memories?</h3>
+        <p class="text-gray-300 mb-6">Jump into the photobooth and start creating.</p>
+        <a href="/photobooth" class="btn-press inline-block bg-mp-pink text-white font-bold py-3 px-8 rounded-full brutal-border shadow-brutal hover:-translate-y-1 transition-transform">Try Photobooth</a>
+    </div>
+    <p class="text-center text-gray-400 text-sm mt-6">© 2026 Manythings Printing. Made with ❤ for your memories.</p>
+</footer>
+
+<!-- ================= CART DRAWER ================= -->
+<div id="cart-overlay" class="fixed inset-0 bg-black/40 modal-backdrop z-[80] hidden opacity-0 transition-opacity duration-300"></div>
+<aside id="cart-drawer" class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-[90] translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between p-5 brutal-border border-t-0 border-x-0">
+        <h3 class="font-heading text-2xl">Your Cart</h3>
+        <button id="cart-close" class="btn-press w-9 h-9 rounded-full brutal-border flex items-center justify-center" aria-label="Close cart">✕</button>
+    </div>
+    <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-3">
+        <p id="cart-empty" class="text-gray-400 text-center mt-10">Your cart is empty. Add something cute!</p>
+    </div>
+    <div class="p-5 border-t-2 border-mp-dark">
+        <div class="flex justify-between font-bold text-lg mb-3">
+            <span>Total</span>
+            <span id="cart-total">$0</span>
+        </div>
+        <button id="checkout-btn" class="btn-press w-full bg-mp-pink text-white font-bold py-3 rounded-full brutal-border shadow-brutal-sm">Checkout</button>
+    </div>
+</aside>
+
+<!-- ================= SIGN IN MODAL ================= -->
+<dialog id="signin-modal" class="w-[92%] max-w-sm rounded-2xl">
+    <div class="brutal-border bg-white rounded-2xl shadow-brutal-lg p-6 pop-in relative">
+        <button type="button" id="signin-close" class="absolute top-4 right-4 w-8 h-8 rounded-full brutal-border flex items-center justify-center btn-press" aria-label="Close">✕</button>
+        <h3 class="font-heading text-2xl mb-1">Welcome back</h3>
+        <p class="text-gray-500 text-sm mb-5">Sign in with Google to track orders and save designs.</p>
+        <div id="google-btn-container" class="flex justify-center py-2"></div>
+        <p id="google-config-warning" class="hidden text-xs text-red-600 mt-4 bg-red-50 rounded-xl p-3 brutal-border border-red-200"></p>
+    </div>
+</dialog>
+
+<script>
+(function(){
+    // ---------- Toast ----------
+    function toast(msg){
+        const c = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = 'toast-anim bg-mp-dark text-white font-bold py-2 px-5 rounded-full shadow-lg text-sm';
+        el.textContent = msg;
+        c.appendChild(el);
+        setTimeout(()=> el.remove(), 2600);
+    }
+
+    // ---------- Mobile menu ----------
+    const menuToggle = document.getElementById('menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const iconOpen = document.getElementById('menu-icon-open');
+    const iconClose = document.getElementById('menu-icon-close');
+    menuToggle.addEventListener('click', () => {
+        const isOpen = mobileMenu.classList.toggle('open');
+        menuToggle.setAttribute('aria-expanded', isOpen);
+        iconOpen.classList.toggle('hidden', isOpen);
+        iconClose.classList.toggle('hidden', !isOpen);
+    });
+    document.querySelectorAll('#mobile-menu [data-nav]').forEach(a=>{
+        a.addEventListener('click', ()=>{
+            mobileMenu.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', false);
+            iconOpen.classList.remove('hidden');
+            iconClose.classList.add('hidden');
+        });
+    });
+
+    // ---------- Active nav underline on scroll ----------
+    const navLinks = document.querySelectorAll('nav [data-nav]');
+    const sections = ['home'].map(id=>document.getElementById(id));
+    const navObserver = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+            if(entry.isIntersecting){
+                navLinks.forEach(l=>{
+                    l.classList.toggle('active', l.getAttribute('href') === '#'+entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: '-40% 0px -50% 0px' });
+    sections.forEach(s=> s && navObserver.observe(s));
+
+    // ---------- Explore Products button ----------
+    const exploreBtn = document.getElementById('hero-explore-btn');
+    if (exploreBtn) {
+        exploreBtn.addEventListener('click', () => {
+            document.getElementById('product-collage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+
+    // ---------- Scroll reveal ----------
+    const revealObserver = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+            if(entry.isIntersecting){
+                entry.target.classList.add('in-view');
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal, .reveal-stagger').forEach(el=> revealObserver.observe(el));
+
+    // ---------- Prints counter animation ----------
+    const counterEl = document.getElementById('prints-counter');
+    let counterStarted = false;
+    const counterObserver = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+            if(entry.isIntersecting && !counterStarted){
+                counterStarted = true;
+                let val = 0;
+                const target = 50000;
+                const step = Math.ceil(target/60);
+                const iv = setInterval(()=>{
+                    val += step;
+                    if(val >= target){ val = target; clearInterval(iv); }
+                    counterEl.textContent = val >= target ? '50k+' : val.toLocaleString();
+                }, 20);
+            }
+        });
+    }, { threshold: 0.5 });
+    counterObserver.observe(counterEl);
+
+    // ---------- Cart ----------
+    let cart = [];
+    const cartCountEl = document.getElementById('cart-count');
+    const cartItemsEl = document.getElementById('cart-items');
+    const cartEmptyEl = document.getElementById('cart-empty');
+    const cartTotalEl = document.getElementById('cart-total');
+
+    function renderCart(){
+        cartItemsEl.querySelectorAll('.cart-line').forEach(n=>n.remove());
+        if(cart.length === 0){
+            cartEmptyEl.classList.remove('hidden');
+        } else {
+            cartEmptyEl.classList.add('hidden');
+            cart.forEach((item, idx)=>{
+                const row = document.createElement('div');
+                row.className = 'cart-line flex items-center justify-between brutal-border rounded-xl p-3 pop-in';
+                row.innerHTML = `
+                    <div>
+                        <p class="font-bold">${item.name}</p>
+                        <p class="text-gray-500 text-sm">$${item.price} × ${item.qty}</p>
+                    </div>
+                    <button class="btn-press w-8 h-8 rounded-full brutal-border flex items-center justify-center text-sm" aria-label="Remove ${item.name}">✕</button>
+                `;
+                row.querySelector('button').addEventListener('click', ()=>{
+                    cart.splice(idx,1);
+                    renderCart();
+                    toast(`Removed ${item.name}`);
+                });
+                cartItemsEl.appendChild(row);
+            });
+        }
+        const total = cart.reduce((sum,i)=> sum + i.price*i.qty, 0);
+        cartTotalEl.textContent = '$' + total;
+        const count = cart.reduce((sum,i)=> sum + i.qty, 0);
+        cartCountEl.textContent = count;
+        cartCountEl.classList.remove('cart-bump');
+        void cartCountEl.offsetWidth;
+        cartCountEl.classList.add('cart-bump');
+    }
+
+    function addToCart(name, price){
+        const existing = cart.find(i=> i.name === name);
+        if(existing){ existing.qty += 1; } else { cart.push({name, price, qty:1}); }
+        renderCart();
+        toast(`Added ${name} to cart 🛒`);
+    }
+
+    document.querySelectorAll('[data-add]').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+            e.preventDefault();
+            addToCart(btn.dataset.add, Number(btn.dataset.price));
+        });
+    });
+
+    const cartOverlay = document.getElementById('cart-overlay');
+    const cartDrawer = document.getElementById('cart-drawer');
+    function openCart(){
+        cartOverlay.classList.remove('hidden');
+        requestAnimationFrame(()=> cartOverlay.classList.remove('opacity-0'));
+        cartDrawer.classList.remove('translate-x-full');
+    }
+    function closeCart(){
+        cartOverlay.classList.add('opacity-0');
+        cartDrawer.classList.add('translate-x-full');
+        setTimeout(()=> cartOverlay.classList.add('hidden'), 300);
+    }
+    document.getElementById('cart-btn').addEventListener('click', openCart);
+    document.getElementById('cart-close').addEventListener('click', closeCart);
+    cartOverlay.addEventListener('click', closeCart);
+    document.getElementById('checkout-btn').addEventListener('click', ()=>{
+        if(cart.length === 0){ toast('Your cart is empty!'); return; }
+        toast('Order placed! Check your email for details 🎉');
+        cart = [];
+        renderCart();
+        closeCart();
+    });
+
+    // ---------- Auth (real Google Sign-In, shared session with /photobooth) ----------
+    async function api(path, options) {
+        const res = await fetch(path, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            ...options,
+        });
+        let data = null;
+        try { data = await res.json(); } catch (e) { /* no body */ }
+        if (!res.ok) {
+            const err = new Error((data && data.error) || `Request failed (${res.status})`);
+            throw err;
+        }
+        return data;
+    }
+
+    let currentUser = null;
+    let googleClientId = null;
+
+    function renderUserChip() {
+        const show = !!currentUser;
+        ['user-chip','user-chip-mobile'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('hidden', !show);
+            el.classList.toggle('flex', show);
+        });
+        ['signin-btn','signin-btn-mobile'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden', show);
+        });
+        if (show) {
+            const first = (currentUser.name || '').split(' ')[0] || 'You';
+            const avatar = currentUser.avatar_url || '';
+            const nameEl = document.getElementById('user-name');
+            const avatarEl = document.getElementById('user-avatar');
+            const nameElMobile = document.getElementById('user-name-mobile');
+            const avatarElMobile = document.getElementById('user-avatar-mobile');
+            if (nameEl) nameEl.textContent = first;
+            if (avatarEl) avatarEl.src = avatar;
+            if (nameElMobile) nameElMobile.textContent = first;
+            if (avatarElMobile) avatarElMobile.src = avatar;
+        }
+    }
+
+    async function checkAuth() {
+        try {
+            const data = await api('/api/auth/me');
+            if (data.authenticated) {
+                currentUser = data.user;
+                renderUserChip();
+            }
+        } catch (e) { /* not signed in, ignore */ }
+    }
+
+    async function loadConfig() {
+        try {
+            const cfg = await api('/api/config');
+            googleClientId = cfg.google_client_id_valid ? cfg.google_client_id : null;
+        } catch (e) { /* ignore */ }
+    }
+
+    function initGoogleSignIn() {
+        const warningEl = document.getElementById('google-config-warning');
+        if (!googleClientId) {
+            if (warningEl) {
+                warningEl.classList.remove('hidden');
+                warningEl.textContent = 'Google sign-in is not configured yet. The server needs a valid GOOGLE_CLIENT_ID environment variable.';
+            }
+            return;
+        }
+        if (!window.google || !window.google.accounts) {
+            setTimeout(initGoogleSignIn, 200);
+            return;
+        }
+        window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: onGoogleCredential,
+        });
+        const container = document.getElementById('google-btn-container');
+        container.innerHTML = '';
+        window.google.accounts.id.renderButton(container, {
+            theme: 'outline', size: 'large', shape: 'pill', width: 260,
+        });
+    }
+
+    async function onGoogleCredential(response) {
+        try {
+            const data = await api('/api/auth/google', {
+                method: 'POST',
+                body: JSON.stringify({ credential: response.credential }),
+            });
+            currentUser = data.user;
+            renderUserChip();
+            signinModal.close();
+            toast(`Welcome, ${(currentUser.name || '').split(' ')[0] || 'friend'}! 👋`);
+        } catch (e) {
+            toast(e.message || 'Google sign-in failed.');
+        }
+    }
+
+    async function signOut() {
+        try { await api('/api/auth/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
+        currentUser = null;
+        renderUserChip();
+        toast('Signed out');
+    }
+
+    const signinModal = document.getElementById('signin-modal');
+    function openSignin(){ signinModal.showModal(); initGoogleSignIn(); }
+    document.getElementById('signin-btn').addEventListener('click', openSignin);
+    document.getElementById('signin-btn-mobile').addEventListener('click', openSignin);
+    document.getElementById('signin-close').addEventListener('click', ()=> signinModal.close());
+    signinModal.addEventListener('click', (e)=>{ if(e.target === signinModal) signinModal.close(); });
+    document.getElementById('user-chip').addEventListener('click', signOut);
+    document.getElementById('user-chip-mobile').addEventListener('click', signOut);
+
+    loadConfig().then(checkAuth);
+
+    // hero-photobooth-btn now navigates via href="/photobooth" (real app)
+
+    // ---------- Little heart burst on logo click (delight) ----------
+    document.querySelector('header a').addEventListener('click', (e)=>{
+        // allow normal anchor scroll, add a small flourish
+        for(let i=0;i<4;i++){
+            const h = document.createElement('div');
+            h.className = 'heart-burst';
+            h.textContent = '💗';
+            h.style.left = (e.clientX + (Math.random()*30-15)) + 'px';
+            h.style.top = (e.clientY + (Math.random()*10-5)) + 'px';
+            document.body.appendChild(h);
+            setTimeout(()=> h.remove(), 1000);
+        }
+    });
+})();
+</script>
+</body>
+</html>

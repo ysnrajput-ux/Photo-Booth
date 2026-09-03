@@ -1,1 +1,1 @@
-# Photo-Booth
+# Photobooth
